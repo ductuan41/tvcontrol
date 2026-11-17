@@ -49,10 +49,9 @@
   </div>
 
   <script>
-    const SUPABASE_URL = 'https://fxqajozsxkmksyajvjxj.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_MhvjPba7Kakm5uKQb9X87Q_FyK1Pk2C';
+    const SUPABASE_URL = 'https://fxqajozsxmksyajvjxj.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_MhvJpba7Kakm5uKQb9X87Q_FyK1Pk2';
     
-    // Sử dụng window.supabase để đảm bảo thư viện CDN nhận diện đúng
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let currentLockState = false;
@@ -62,17 +61,13 @@
         const { data, error } = await supabaseClient.from('tv_control').select('*').eq('id', 1).single();
         if (error) {
           document.getElementById('status-text').innerText = 'Lỗi DB: ' + error.message;
-          console.error(error);
           return;
         }
         if (data) {
           updateUI(data);
-        } else {
-          document.getElementById('status-text').innerText = 'Không tìm thấy dữ liệu id=1';
         }
       } catch (err) {
         document.getElementById('status-text').innerText = 'Lỗi kết nối mạng!';
-        console.error(err);
       }
     }
 
@@ -127,7 +122,7 @@
       fetchStatus();
     }
 
-    // Lắng nghe realtime
+    // Lắng nghe realtime từ Supabase
     supabaseClient
       .channel('tv_channel')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tv_control' }, payload => {
