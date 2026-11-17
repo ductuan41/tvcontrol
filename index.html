@@ -19,11 +19,11 @@
       <p class="text-sm text-slate-400 mt-3 mb-1">Đang mở ứng dụng:</p>
       <p id="app-text" class="text-md font-semibold text-blue-400">--</p>
 
-      <p class="text-sm text-slate-400 mt-3 mb-1">Chế độ thời gian</p>
+      <p class="text-sm text-slate-400 mt-3 mb-1">Thời gian xem còn lại</p>
       <p id="time-display" class="text-2xl font-extrabold text-emerald-400">--</p>
     </div>
 
-    <div class="mb-4">
+    <div class="mb-5">
       <button id="toggle-lock-btn" onclick="toggleLock()" 
         class="w-full py-3 rounded-xl font-bold text-lg transition bg-red-600 hover:bg-red-500">
         Khóa Tivi ngay lập tức
@@ -31,16 +31,26 @@
     </div>
 
     <p class="text-sm text-slate-400 mb-2">Chặn ứng dụng riêng biệt:</p>
-    <div class="grid grid-cols-2 gap-2 mb-6">
+    <div class="grid grid-cols-2 gap-2 mb-5">
       <button onclick="blockApp('youtube')" class="bg-amber-600 hover:bg-amber-500 py-2 rounded-lg font-medium text-sm">Chặn YouTube</button>
       <button onclick="blockApp('netflix')" class="bg-red-700 hover:bg-red-600 py-2 rounded-lg font-medium text-sm">Chặn Netflix</button>
     </div>
 
-    <p class="text-sm text-slate-400 mb-2">Hẹn giờ tự động tắt sau:</p>
-    <div class="grid grid-cols-3 gap-2 mb-4">
-      <button onclick="setTimer(15)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded-lg font-medium">15 phút</button>
-      <button onclick="setTimer(30)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded-lg font-medium">30 phút</button>
-      <button onclick="setTimer(60)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded-lg font-medium">60 phút</button>
+    <p class="text-sm text-slate-400 mb-2">Cấp thêm giờ xem (Cộng dồn):</p>
+    <div class="grid grid-cols-3 gap-2 mb-3">
+      <button onclick="addMinutes(15)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded-lg font-medium text-sm">+15 phút</button>
+      <button onclick="addMinutes(30)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded-lg font-medium text-sm">+30 phút</button>
+      <button onclick="addMinutes(60)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded-lg font-medium text-sm">+60 phút</button>
+    </div>
+
+    <!-- Ô nhập số phút tùy chỉnh -->
+    <div class="flex gap-2">
+      <input type="number" id="custom-minutes" min="1" max="600" placeholder="Nhập số phút tùy ý..." 
+        class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+      <button onclick="addCustomMinutes()" 
+        class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap">
+        Cấp giờ
+      </button>
     </div>
   </div>
 
@@ -50,6 +60,7 @@
     
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     let currentLockState = false;
+    let currentRemainingMinutes = -1;
 
     async function fetchStatus() {
       try {
@@ -66,6 +77,8 @@
 
     function updateUI(data) {
       currentLockState = data.is_locked;
+      currentRemainingMinutes = data.remaining_minutes;
+
       const statusEl = document.getElementById('status-text');
       const timeDisplayEl = document.getElementById('time-display');
       const appEl = document.getElementById('app-text');
@@ -76,7 +89,7 @@
       if (data.is_locked || data.remaining_minutes === 0) {
         statusEl.innerText = '🔒 ĐANG KHÓA TIVI';
         statusEl.className = 'text-lg font-bold text-red-400';
-        timeDisplayEl.innerText = 'Đã hết giờ / Bị khóa';
+        timeDisplayEl.innerText = '0 phút (Đã khóa)';
         timeDisplayEl.className = 'text-xl font-extrabold text-red-400';
         btnEl.innerText = 'Mở khóa (Không giới hạn)';
         btnEl.className = 'w-full py-3 rounded-xl font-bold text-lg transition bg-emerald-600 hover:bg-emerald-500';
@@ -101,7 +114,6 @@
       const willLock = !currentLockState;
       await supabaseClient.from('tv_control').update({ 
         is_locked: willLock,
-        // Nếu mở khóa thì đặt -1 (không giới hạn), nếu khóa thì đặt 0
         remaining_minutes: willLock ? 0 : -1,
         block_app: null,
         updated_at: new Date() 
@@ -118,14 +130,29 @@
       fetchStatus();
     }
 
-    async function setTimer(minutes) {
+    async function addMinutes(mins) {
+      // Nếu đang khóa hoặc đang mở tự do (-1) thì đặt bằng số phút mới, nếu đang đếm ngược thì cộng dồn thêm
+      const baseTime = (currentLockState || currentRemainingMinutes <= 0) ? 0 : currentRemainingMinutes;
+      const newTotal = baseTime + mins;
+
       await supabaseClient.from('tv_control').update({ 
-        remaining_minutes: minutes, 
+        remaining_minutes: newTotal, 
         is_locked: false, 
         block_app: null,
         updated_at: new Date() 
       }).eq('id', 1);
       fetchStatus();
+    }
+
+    function addCustomMinutes() {
+      const inputEl = document.getElementById('custom-minutes');
+      const mins = parseInt(inputEl.value);
+      if (!mins || mins <= 0) {
+        alert('Vui lòng nhập số phút hợp lệ (lớn hơn 0)!');
+        return;
+      }
+      addMinutes(mins);
+      inputEl.value = '';
     }
 
     supabaseClient
