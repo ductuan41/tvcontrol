@@ -12,63 +12,63 @@
   <div class="bg-slate-800 p-6 rounded-2xl shadow-xl w-full max-w-sm border border-slate-700">
     <h1 class="text-xl font-bold text-center mb-6">📺 Quản lý Tivi ở nhà</h1>
 
-    <!-- Trạng thái hiện tại -->
+    <!-- Trạng thái & Ứng dụng đang mở -->
     <div class="bg-slate-900 p-4 rounded-xl mb-6 text-center">
-      <p class="text-sm text-slate-400 mb-1">Trạng thái hiện tại</p>
+      <p class="text-sm text-slate-400 mb-1">Trạng thái Tivi</p>
       <p id="status-text" class="text-lg font-bold text-yellow-400">Đang tải...</p>
+      
+      <p class="text-sm text-slate-400 mt-3 mb-1">Đang mở ứng dụng:</p>
+      <p id="app-text" class="text-md font-semibold text-blue-400">--</p>
+
       <p class="text-sm text-slate-400 mt-3 mb-1">Thời gian xem còn lại</p>
       <p class="text-3xl font-extrabold text-emerald-400"><span id="time-text">--</span> phút</p>
     </div>
 
     <!-- Nút Khóa / Mở khóa ngay lập tức -->
-    <div class="mb-6">
+    <div class="mb-4">
       <button id="toggle-lock-btn" onclick="toggleLock()" 
         class="w-full py-3 rounded-xl font-bold text-lg transition bg-red-600 hover:bg-red-500">
-        Đang kết nối...
+        Khóa Tivi ngay lập tức
       </button>
     </div>
 
+    <!-- Nút Chặn nhanh ứng dụng -->
+    <p class="text-sm text-slate-400 mb-2">Chặn ứng dụng riêng biệt:</p>
+    <div class="grid grid-cols-2 gap-2 mb-6">
+      <button onclick="blockApp('youtube')" class="bg-amber-600 hover:bg-amber-500 py-2 rounded-lg font-medium text-sm">Chặn YouTube</button>
+      <button onclick="blockApp('netflix')" class="bg-red-700 hover:bg-red-600 py-2 rounded-lg font-medium text-sm">Chặn Netflix</button>
+    </div>
+
     <!-- Đặt nhanh thời gian xem -->
-    <p class="text-sm text-slate-400 mb-2">Cấp thêm / Đặt lại giờ xem:</p>
+    <p class="text-sm text-slate-400 mb-2">Cấp thêm giờ xem:</p>
     <div class="grid grid-cols-3 gap-2 mb-4">
       <button onclick="setTimer(15)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded-lg font-medium">15 phút</button>
       <button onclick="setTimer(30)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded-lg font-medium">30 phút</button>
       <button onclick="setTimer(60)" class="bg-slate-700 hover:bg-slate-600 py-2 rounded-lg font-medium">60 phút</button>
     </div>
-
-    <div class="flex gap-2">
-      <input id="custom-time" type="number" placeholder="Nhập số phút..." 
-        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none">
-      <button onclick="setCustomTimer()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-semibold">Lưu</button>
-    </div>
   </div>
 
   <script>
-    // THAY URL VÀ KEY SUPABASE CỦA BẠN VÀO ĐÂY
-    const SUPABASE_URL = 'https://fxqajozsxkmksyajvjxj.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_MhvjPba7Kakm5uKQb9X87Q_FyK1Pk2C';
+    const SUPABASE_URL = 'https://fxqajozsxmksyajvjxj.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_MhvjPba7Kakm5uKQb9X87Q_FyK1Pk2C'; // Thay Key của bạn
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let currentLockState = false;
 
-    // 1. Lấy trạng thái ban đầu
     async function fetchStatus() {
-      const { data, error } = await supabaseClient
-        .from('tv_control')
-        .select('*')
-        .eq('id', 1)
-        .single();
+      const { data } = await supabaseClient.from('tv_control').select('*').eq('id', 1).single();
       if (data) updateUI(data);
     }
 
-    // 2. Cập nhật giao diện
     function updateUI(data) {
       currentLockState = data.is_locked;
       const statusEl = document.getElementById('status-text');
       const timeEl = document.getElementById('time-text');
+      const appEl = document.getElementById('app-text');
       const btnEl = document.getElementById('toggle-lock-btn');
 
       timeEl.innerText = data.remaining_minutes;
+      appEl.innerText = data.current_app || 'Đang kiểm tra...';
 
       if (data.is_locked || data.remaining_minutes <= 0) {
         statusEl.innerText = '🔒 ĐANG KHÓA TIVI';
@@ -83,32 +83,32 @@
       }
     }
 
-    // 3. Hàm bấm nút Khóa / Mở khóa
     async function toggleLock() {
       const newLockState = !currentLockState;
-      const updateData = { is_locked: newLockState, updated_at: new Date() };
-      // Nếu mở khóa mà số phút đang = 0 thì tự động cho 30 phút
-      if (!newLockState && parseInt(document.getElementById('time-text').innerText) <= 0) {
-        updateData.remaining_minutes = 30;
-      }
-      await supabaseClient.from('tv_control').update(updateData).eq('id', 1);
-    }
-
-    // 4. Hàm đặt số phút
-    async function setTimer(minutes) {
       await supabaseClient.from('tv_control').update({ 
-        remaining_minutes: minutes, 
-        is_locked: minutes <= 0,
+        is_locked: newLockState, 
+        block_app: null,
         updated_at: new Date() 
       }).eq('id', 1);
     }
 
-    function setCustomTimer() {
-      const val = parseInt(document.getElementById('custom-time').value);
-      if (!isNaN(val) && val >= 0) setTimer(val);
+    async function blockApp(appName) {
+      await supabaseClient.from('tv_control').update({ 
+        block_app: appName, 
+        is_locked: false,
+        updated_at: new Date() 
+      }).eq('id', 1);
     }
 
-    // 5. Lắng nghe thay đổi Realtime từ Supabase
+    async function setTimer(minutes) {
+      await supabaseClient.from('tv_control').update({ 
+        remaining_minutes: minutes, 
+        is_locked: false, 
+        block_app: null,
+        updated_at: new Date() 
+      }).eq('id', 1);
+    }
+
     supabaseClient
       .channel('tv_channel')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tv_control' }, payload => {
