@@ -15,7 +15,7 @@
     <!-- Trạng thái & Ứng dụng đang mở -->
     <div class="bg-slate-900 p-4 rounded-xl mb-6 text-center">
       <p class="text-sm text-slate-400 mb-1">Trạng thái Tivi</p>
-      <p id="status-text" class="text-lg font-bold text-yellow-400">Đang tải...</p>
+      <p id="status-text" class="text-lg font-bold text-yellow-400">Đang kết nối...</p>
       
       <p class="text-sm text-slate-400 mt-3 mb-1">Đang mở ứng dụng:</p>
       <p id="app-text" class="text-md font-semibold text-blue-400">--</p>
@@ -51,13 +51,29 @@
   <script>
     const SUPABASE_URL = 'https://fxqajozsxmksyajvjxj.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_MhvJpba7Kakm5uKQb9X87Q_FyK1Pk2';
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    // Sử dụng window.supabase để đảm bảo thư viện CDN nhận diện đúng
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let currentLockState = false;
 
     async function fetchStatus() {
-      const { data } = await supabaseClient.from('tv_control').select('*').eq('id', 1).single();
-      if (data) updateUI(data);
+      try {
+        const { data, error } = await supabaseClient.from('tv_control').select('*').eq('id', 1).single();
+        if (error) {
+          document.getElementById('status-text').innerText = 'Lỗi DB: ' + error.message;
+          console.error(error);
+          return;
+        }
+        if (data) {
+          updateUI(data);
+        } else {
+          document.getElementById('status-text').innerText = 'Không tìm thấy dữ liệu id=1';
+        }
+      } catch (err) {
+        document.getElementById('status-text').innerText = 'Lỗi kết nối mạng!';
+        console.error(err);
+      }
     }
 
     function updateUI(data) {
@@ -84,12 +100,12 @@
     }
 
     async function toggleLock() {
-      const newLockState = !currentLockState;
       await supabaseClient.from('tv_control').update({ 
-        is_locked: newLockState, 
+        is_locked: !currentLockState, 
         block_app: null,
         updated_at: new Date() 
       }).eq('id', 1);
+      fetchStatus();
     }
 
     async function blockApp(appName) {
@@ -98,6 +114,7 @@
         is_locked: false,
         updated_at: new Date() 
       }).eq('id', 1);
+      fetchStatus();
     }
 
     async function setTimer(minutes) {
@@ -107,8 +124,10 @@
         block_app: null,
         updated_at: new Date() 
       }).eq('id', 1);
+      fetchStatus();
     }
 
+    // Lắng nghe realtime
     supabaseClient
       .channel('tv_channel')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tv_control' }, payload => {
