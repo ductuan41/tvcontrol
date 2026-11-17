@@ -50,8 +50,8 @@
 
   <script>
     const SUPABASE_URL = 'https://fxqajozsxmksyajvjxj.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_MhvjPba7Kakm5uKQb9X87Q_FyK1Pk2C'; // Thay Key của bạn
-    const supabaseClient = supabase.createClient(https://fxqajozsxmksyajvjxj.supabase.co, sb_publishable_MhvjPba7Kakm5uKQb9X87Q_FyK1Pk2C);
+    const SUPABASE_KEY = 'sb_publishable_MhvJpba7Kakm5uKQb9X87Q_FyK1Pk2';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let currentLockState = false;
 
@@ -68,7 +68,7 @@
       const btnEl = document.getElementById('toggle-lock-btn');
 
       timeEl.innerText = data.remaining_minutes;
-      appEl.innerText = data.current_app || 'Đang kiểm tra...';
+      appEl.innerText = data.current_app || 'Màn hình chính';
 
       if (data.is_locked || data.remaining_minutes <= 0) {
         statusEl.innerText = '🔒 ĐANG KHÓA TIVI';
